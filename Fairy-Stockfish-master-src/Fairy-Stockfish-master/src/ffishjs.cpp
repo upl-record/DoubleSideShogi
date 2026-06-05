@@ -507,7 +507,7 @@ namespace ffish {
       Board::sfInitialized = true;
     }
     if (Options["Use NNUE"] != "false")
-      Options["Use NNUE"] = "false";
+      Options["Use NNUE"] = std::string("false");
     UCI::init_variant(v);
     PSQT::init(v);
     Endgames::init();
