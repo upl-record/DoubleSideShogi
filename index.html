@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>양면장기</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="game-layout" aria-label="양면장기 게임">
+        <section class="board-column" aria-label="게임판과 플레이어">
+          <div class="player-strip player-two" aria-label="Player 2 정보">
+            <div class="avatar" aria-hidden="true"></div>
+            <div class="player-meta">
+              <strong>흑</strong>
+              <span>Player 2</span>
+            </div>
+            <div id="hand2" class="hand-grid"></div>
+          </div>
+
+          <div class="board-row">
+            <div class="score-rail" aria-label="현재 평가치">
+              <div id="scoreFill" class="score-fill"></div>
+              <span id="scoreValue">0.00</span>
+            </div>
+            <div class="board-wrap">
+              <div id="board" class="board" role="grid" aria-label="양면장기 5x5 게임판"></div>
+            </div>
+          </div>
+
+          <div class="player-strip player-one" aria-label="Player 1 정보">
+            <div class="avatar light" aria-hidden="true"></div>
+            <div class="player-meta">
+              <strong>백</strong>
+              <span>Player 1</span>
+            </div>
+            <div id="hand1" class="hand-grid"></div>
+          </div>
+        </section>
+
+        <aside class="analysis-panel" aria-label="게임 분석 패널">
+          <div class="analysis-header">
+            <span class="analysis-icon" aria-hidden="true">⌕</span>
+            <h1 id="panelTitle">분석</h1>
+          </div>
+
+          <div class="panel-tabs" role="tablist" aria-label="패널 탭">
+            <button id="analysisTab" class="active" type="button" role="tab" aria-selected="true" aria-controls="analysisPanelTab" data-panel-tab="analysis">분석</button>
+            <button id="gameTab" type="button" role="tab" aria-selected="false" aria-controls="gamePanelTab" data-panel-tab="game">게임</button>
+            <button id="reviewTab" type="button" role="tab" aria-selected="false" aria-controls="reviewPanelTab" data-panel-tab="review">리뷰</button>
+          </div>
+
+          <section id="analysisPanelTab" class="panel-view analysis-view active" role="tabpanel" aria-labelledby="analysisTab">
+            <div class="turn-card">
+              <p class="panel-label">현재 차례</p>
+              <h2 id="turnTitle">Player 1 차례</h2>
+              <p id="statusText">초기 배치 완료</p>
+            </div>
+
+            <div class="analysis-card">
+              <div class="analysis-headline">
+                <div>
+                  <p class="panel-label">자동 분석</p>
+                  <strong id="analysisDepthLabel">time 3s</strong>
+                </div>
+                <div class="analysis-status">
+                  <span id="analysisStateLabel">대기 중</span>
+                  <button id="resumeAnalysisButton" class="resume-analysis-button" type="button" disabled>재개</button>
+                  <button id="stopAnalysisButton" class="stop-analysis-button" type="button" disabled>중지</button>
+                </div>
+              </div>
+              <div class="analysis-time-control" aria-label="분석 시간 설정">
+                <label for="analysisTimeInput">분석 시간</label>
+                <input id="analysisTimeInput" type="number" min="0.5" max="60" step="0.5" value="3" inputmode="decimal">
+                <span>초</span>
+              </div>
+              <div class="progress-track" aria-label="분석 진행률">
+                <div id="analysisProgressBar" class="progress-fill"></div>
+              </div>
+              <div class="analysis-meta">
+                <span id="analysisProgressText">대기 중</span>
+                <span id="analysisStatsText">nodes 0</span>
+              </div>
+              <div id="analysisLines" class="analysis-lines" aria-live="polite">
+                <p class="empty-analysis">착수 후 설정 시간만큼 자동 분석합니다.</p>
+              </div>
+            </div>
+
+            <div class="log-card">
+              <p class="panel-label">기보</p>
+              <ol id="moveLog" class="move-log"></ol>
+            </div>
+
+            <div class="actions">
+              <button id="undoButton" class="ghost-button" type="button">Undo</button>
+              <button id="saveKifuButton" class="ghost-button" type="button">기보 저장</button>
+              <button id="loadKifuButton" class="ghost-button" type="button">기보 불러오기</button>
+              <button id="resetButton" class="primary-button" type="button">New</button>
+              <input id="kifuFileInput" class="visually-hidden" type="file" accept="application/json,.json">
+            </div>
+          </section>
+
+          <section id="gamePanelTab" class="panel-view game-view" role="tabpanel" aria-labelledby="gameTab" hidden>
+            <div class="game-card">
+              <p class="panel-label">AI 대국</p>
+              <h2 id="aiGameHeading">대기 중</h2>
+              <p id="gameTabStatus">Player 1 수동 대국</p>
+              <div id="aiGameSettings" class="ai-game-settings" hidden>
+                <div class="setting-row first-move-setting">
+                  <span>첫 착수자</span>
+                  <div class="segmented-control" role="radiogroup" aria-label="AI 대국 첫 착수자">
+                    <input id="aiFirstHuman" type="radio" name="aiFirstMove" value="human" checked>
+                    <label for="aiFirstHuman">선</label>
+                    <input id="aiFirstAi" type="radio" name="aiFirstMove" value="ai">
+                    <label for="aiFirstAi">후</label>
+                    <input id="aiFirstRandom" type="radio" name="aiFirstMove" value="random">
+                    <label for="aiFirstRandom">랜덤</label>
+                  </div>
+                </div>
+                <label class="setting-row" for="aiTimeInput">
+                  <span>AI 계산 시간</span>
+                  <span class="number-setting">
+                    <input id="aiTimeInput" type="number" min="0.5" max="60" step="0.5" value="3" inputmode="decimal">
+                    <span>초</span>
+                  </span>
+                </label>
+                <label class="setting-row checkbox-setting">
+                  <input id="aiEvalToggle" type="checkbox" checked>
+                  <span>평가치 표시</span>
+                </label>
+                <div class="game-controls">
+                  <button id="startAiGameButton" class="primary-button" type="button">시작</button>
+                  <button id="cancelAiGameButton" class="ghost-button" type="button">취소</button>
+                </div>
+              </div>
+              <div class="game-controls">
+                <button id="aiGameButton" class="ghost-button" type="button">AI 대국</button>
+                <button id="gameRecordSaveButton" class="ghost-button" type="button" disabled>전체 기록 저장</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="reviewPanelTab" class="panel-view review-view" role="tabpanel" aria-labelledby="reviewTab" hidden>
+            <div class="review-card">
+              <p class="panel-label">리뷰</p>
+              <div class="review-heading">
+                <h2 id="reviewTitle">기보 없음</h2>
+                <div class="review-extra-analysis" aria-label="현재 수 추가 분석">
+                  <label for="reviewExtraTimeInput">제한</label>
+                  <input id="reviewExtraTimeInput" type="number" min="0.5" max="60" step="0.5" value="6" inputmode="decimal">
+                  <span>초</span>
+                  <button id="reviewAnalyzeButton" class="ghost-button compact" type="button" disabled>추가 분석</button>
+                </div>
+              </div>
+              <div class="review-actions">
+                <button id="reviewLoadButton" class="ghost-button" type="button">기보 불러오기</button>
+                <button id="reviewStartButton" class="ghost-button compact" type="button" disabled>&lt;&lt;</button>
+                <button id="reviewUndoButton" class="ghost-button compact" type="button" disabled>&lt;</button>
+                <button id="reviewRedoButton" class="ghost-button compact" type="button" disabled>&gt;</button>
+                <button id="reviewEndButton" class="ghost-button compact" type="button" disabled>&gt;&gt;</button>
+                <input id="reviewFileInput" class="visually-hidden" type="file" accept="application/json,.json">
+              </div>
+              <p id="reviewStatus" class="review-status">JSON 기보를 불러오면 5초 기준으로 전체 수를 분석합니다.</p>
+              <div class="review-current">
+                <div>
+                  <span>현재 평가</span>
+                  <strong id="reviewScoreLabel">-</strong>
+                </div>
+                <div>
+                  <span>형세</span>
+                  <strong id="reviewCategoryLabel">-</strong>
+                </div>
+              </div>
+              <p id="reviewBestMove" class="review-best">최선수: -</p>
+              <div id="reviewMoveList" class="review-move-list" aria-live="polite"></div>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script src="brps_app.js"></script>
+  </body>
+</html>
