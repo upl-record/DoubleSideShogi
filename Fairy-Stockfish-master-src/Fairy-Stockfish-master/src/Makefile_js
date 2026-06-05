@@ -24,7 +24,7 @@ SRCS = ffishjs.cpp benchmark.cpp bitbase.cpp bitboard.cpp endgame.cpp evaluate.c
 	nnue/features/half_ka_v2_variants.cpp
 
 CXX=emcc
-CXXFLAGS += --bind -DNNUE_EMBEDDING_OFF -DNO_THREADS -std=c++17 -Wall
+CXXFLAGS += --bind -DNNUE_EMBEDDING_OFF -DNO_THREADS -std=c++17 -Wall -s DISABLE_EXCEPTION_CATCHING=0
 
 largeboards = yes
 all = yes
@@ -33,7 +33,7 @@ debug = no
 
 ### Debugging
 ifeq ($(debug),no)
-	CXXFLAGS += -DNDEBUG -s ASSERTIONS=0 -s SAFE_HEAP=0
+	CXXFLAGS += -DNDEBUG -s ASSERTIONS=1 -s SAFE_HEAP=0
 else
 	CXXFLAGS += -g -s ASSERTIONS=1 -s SAFE_HEAP=1
 endif

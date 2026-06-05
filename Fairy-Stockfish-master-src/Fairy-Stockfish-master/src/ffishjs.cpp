@@ -506,7 +506,7 @@ namespace ffish {
       initialize_stockfish();
       Board::sfInitialized = true;
     }
-    if (Options["Use NNUE"] != "false")
+    if (static_cast<double>(Options["Use NNUE"]) != 0)
       Options["Use NNUE"] = std::string("false");
     UCI::init_variant(v);
     PSQT::init(v);
@@ -577,11 +577,16 @@ namespace ffish {
     const int safeDepth = std::max(1, std::min(depth, 30));
     const int safeMultiPv = std::max(1, std::min(multipv, 3));
     const int safeMovetimeMs = std::max(0, std::min(movetimeMs, 120000));
-    const Variant* v = get_variant(uciVariant);
     std::ostringstream capturedOutput;
     std::streambuf* previousCout = std::cout.rdbuf(capturedOutput.rdbuf());
 
     try {
+      auto variantIt = variants.find(uciVariant);
+      if (variantIt == variants.end()) {
+        std::cout.rdbuf(previousCout);
+        return std::string("{\"ok\":false,\"error\":\"unknown variant: ") + json_escape(uciVariant) + "\"}";
+      }
+      const Variant* v = variantIt->second;
       ensure_search_ready(v);
       Options["UCI_Variant"] = uciVariant;
       Options["MultiPV"] = std::to_string(safeMultiPv);
