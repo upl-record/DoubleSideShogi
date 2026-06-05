@@ -78,7 +78,7 @@ help:
 	@echo ""
 
 objclean:
-	@rm -f $(EXE)
+	@rm -f $(EXE) ../tests/js/ffish.wasm
 
 clean: objclean
 

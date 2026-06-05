@@ -23,9 +23,42 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Inspect WASM build inputs
+        working-directory: Fairy-Stockfish-master-src/Fairy-Stockfish-master/src
+        run: |
+          set -eux
+          pwd
+          emcc -v
+          make --version
+          test -f Makefile_js
+          test -f ffishjs.cpp
+          test -f thread.cpp
+          test -f nnue/evaluate_nnue.cpp
+          test -f nnue/features/half_ka_v2.cpp
+          test -f nnue/features/half_ka_v2_variants.cpp
+          test -f syzygy/tbprobe.cpp
+          test -d ../tests/js
+
       - name: Build Fairy-Stockfish WASM
         working-directory: Fairy-Stockfish-master-src/Fairy-Stockfish-master/src
-        run: make -f Makefile_js build es6=yes
+        run: |
+          set -eux
+          make -f Makefile_js clean
+          make -f Makefile_js build es6=yes > ../../../wasm-build.log 2>&1 || {
+            status=$?
+            cat ../../../wasm-build.log
+            exit $status
+          }
+          cat ../../../wasm-build.log
+          test -f ../tests/js/ffish.js
+          test -f ../tests/js/ffish.wasm
+
+      - name: Upload WASM build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-build-log
+          path: wasm-build.log
 
       - name: Prepare Pages artifact
         run: |
