@@ -29,7 +29,12 @@ jobs:
 
       - name: Prepare Pages artifact
         run: |
+          mkdir -p docs/Reference
           mkdir -p docs/engine
+          cp index.html docs/index.html
+          cp styles.css docs/styles.css
+          cp brps_app.js docs/brps_app.js
+          cp Reference/freesound_community-ficha-de-ajedrez-34722.mp3 docs/Reference/freesound_community-ficha-de-ajedrez-34722.mp3
           cp engine/yangmyeon_engine_worker.js docs/engine/yangmyeon_engine_worker.js
           cp variants.ini docs/engine/variants.ini
           cp Fairy-Stockfish-master-src/Fairy-Stockfish-master/tests/js/ffish.js docs/engine/ffish.js
