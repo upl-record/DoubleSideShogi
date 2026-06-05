@@ -1,0 +1,55 @@
+name: Build GitHub Pages WASM
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: emscripten/emsdk:1.39.16
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Fairy-Stockfish WASM
+        working-directory: Fairy-Stockfish-master-src/Fairy-Stockfish-master/src
+        run: make -f Makefile_js build es6=yes
+
+      - name: Prepare Pages artifact
+        run: |
+          mkdir -p docs/engine
+          cp engine/yangmyeon_engine_worker.js docs/engine/yangmyeon_engine_worker.js
+          cp variants.ini docs/engine/variants.ini
+          cp Fairy-Stockfish-master-src/Fairy-Stockfish-master/tests/js/ffish.js docs/engine/ffish.js
+          cp Fairy-Stockfish-master-src/Fairy-Stockfish-master/tests/js/ffish.wasm docs/engine/ffish.wasm
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
