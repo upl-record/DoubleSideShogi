@@ -244,12 +244,80 @@ const activeMoveSounds = new Set();
 let fairyWasmWorker = null;
 let fairyWasmRequestId = 0;
 const fairyWasmPending = new Map();
+const fairyWasmQueue = [];
+let fairyWasmActiveRequest = null;
+const FAIRY_WASM_MIN_TIMEOUT_MS = 15000;
+const FAIRY_WASM_TIMEOUT_GRACE_MS = 10000;
+const FAIRY_WASM_MAX_TIMEOUT_MS = 130000;
+
+function fairyWasmAbortError() {
+  return new DOMException("analysis cancelled", "AbortError");
+}
+
+function fairyWasmTimeoutMs(body = {}) {
+  const movetimeMs = Number(body.movetimeMs) || 0;
+  return Math.max(
+    FAIRY_WASM_MIN_TIMEOUT_MS,
+    Math.min(FAIRY_WASM_MAX_TIMEOUT_MS, movetimeMs + FAIRY_WASM_TIMEOUT_GRACE_MS),
+  );
+}
+
+function cleanupFairyWasmRequest(request) {
+  if (!request) return;
+  if (request.timeoutId) {
+    window.clearTimeout(request.timeoutId);
+    request.timeoutId = null;
+  }
+  if (request.signal && request.abortHandler) {
+    request.signal.removeEventListener("abort", request.abortHandler);
+  }
+}
+
+function settleFairyWasmRequest(request, error, payload) {
+  cleanupFairyWasmRequest(request);
+  if (error) {
+    request.reject(error);
+  } else {
+    request.resolve(payload);
+  }
+}
+
+function terminateFairyWasmWorker() {
+  if (fairyWasmWorker) {
+    fairyWasmWorker.terminate();
+    fairyWasmWorker = null;
+  }
+}
 
 function rejectAllFairyWasmRequests(error) {
+  const active = fairyWasmActiveRequest;
+  fairyWasmActiveRequest = null;
+  if (active) {
+    fairyWasmPending.delete(active.id);
+    settleFairyWasmRequest(active, error);
+  }
+  while (fairyWasmQueue.length) {
+    settleFairyWasmRequest(fairyWasmQueue.shift(), error);
+  }
   for (const pending of fairyWasmPending.values()) {
-    pending.reject(error);
+    settleFairyWasmRequest(pending, error);
   }
   fairyWasmPending.clear();
+}
+
+function finishFairyWasmActiveRequest(id, ok, payload, error) {
+  const pending = fairyWasmPending.get(id);
+  if (!pending) return;
+  fairyWasmPending.delete(id);
+  if (fairyWasmActiveRequest === pending) {
+    fairyWasmActiveRequest = null;
+  }
+  settleFairyWasmRequest(
+    pending,
+    ok ? null : new Error(error || "Fairy WASM engine error"),
+    payload,
+  );
+  processFairyWasmQueue();
 }
 
 function getFairyWasmWorker() {
@@ -257,42 +325,93 @@ function getFairyWasmWorker() {
   fairyWasmWorker = new Worker(FAIRY_WASM_WORKER_URL, { type: "module" });
   fairyWasmWorker.addEventListener("message", (event) => {
     const { id, ok, payload, error } = event.data || {};
-    const pending = fairyWasmPending.get(id);
-    if (!pending) return;
-    fairyWasmPending.delete(id);
-    if (!ok) {
-      pending.reject(new Error(error || "Fairy WASM engine error"));
-      return;
-    }
-    pending.resolve(payload);
+    finishFairyWasmActiveRequest(id, ok, payload, error);
   });
   fairyWasmWorker.addEventListener("error", (event) => {
     rejectAllFairyWasmRequests(new Error(event.message || "Fairy WASM worker failed"));
-    fairyWasmWorker = null;
+    terminateFairyWasmWorker();
+  });
+  fairyWasmWorker.addEventListener("messageerror", () => {
+    rejectAllFairyWasmRequests(new Error("Fairy WASM worker returned an unreadable message"));
+    terminateFairyWasmWorker();
   });
   return fairyWasmWorker;
+}
+
+function abortFairyWasmRequest(request) {
+  const abortError = fairyWasmAbortError();
+  const queuedIndex = fairyWasmQueue.indexOf(request);
+  if (queuedIndex >= 0) {
+    fairyWasmQueue.splice(queuedIndex, 1);
+    settleFairyWasmRequest(request, abortError);
+    return;
+  }
+  if (fairyWasmActiveRequest === request) {
+    fairyWasmPending.delete(request.id);
+    fairyWasmActiveRequest = null;
+    settleFairyWasmRequest(request, abortError);
+    terminateFairyWasmWorker();
+    processFairyWasmQueue();
+  }
+}
+
+function processFairyWasmQueue() {
+  if (fairyWasmActiveRequest) return;
+  while (fairyWasmQueue.length) {
+    const request = fairyWasmQueue.shift();
+    if (request.signal && request.signal.aborted) {
+      settleFairyWasmRequest(request, fairyWasmAbortError());
+      continue;
+    }
+    fairyWasmActiveRequest = request;
+    request.started = true;
+    try {
+      const worker = getFairyWasmWorker();
+      fairyWasmPending.set(request.id, request);
+      request.timeoutId = window.setTimeout(() => {
+        if (fairyWasmActiveRequest !== request) return;
+        fairyWasmPending.delete(request.id);
+        fairyWasmActiveRequest = null;
+        settleFairyWasmRequest(request, new Error("Fairy WASM analysis timed out"));
+        terminateFairyWasmWorker();
+        processFairyWasmQueue();
+      }, fairyWasmTimeoutMs(request.body));
+      worker.postMessage({ id: request.id, type: "analyze", ...request.body });
+    } catch (error) {
+      fairyWasmActiveRequest = null;
+      settleFairyWasmRequest(request, error);
+      terminateFairyWasmWorker();
+      continue;
+    }
+    break;
+  }
 }
 
 function requestFairyWasmAnalysis(body, signal) {
   if (!CAN_USE_FAIRY_WASM) {
     return Promise.reject(new Error("Fairy WASM engine is unavailable"));
   }
-  const worker = getFairyWasmWorker();
+  if (signal && signal.aborted) {
+    return Promise.reject(fairyWasmAbortError());
+  }
   const id = ++fairyWasmRequestId;
   return new Promise((resolve, reject) => {
-    const abort = () => {
-      fairyWasmPending.delete(id);
-      reject(new DOMException("analysis cancelled", "AbortError"));
+    const request = {
+      id,
+      body,
+      signal,
+      resolve,
+      reject,
+      started: false,
+      timeoutId: null,
+      abortHandler: null,
     };
-    fairyWasmPending.set(id, { resolve, reject });
     if (signal) {
-      if (signal.aborted) {
-        abort();
-        return;
-      }
-      signal.addEventListener("abort", abort, { once: true });
+      request.abortHandler = () => abortFairyWasmRequest(request);
+      signal.addEventListener("abort", request.abortHandler, { once: true });
     }
-    worker.postMessage({ id, type: "analyze", ...body });
+    fairyWasmQueue.push(request);
+    processFairyWasmQueue();
   });
 }
 
@@ -1149,6 +1268,7 @@ async function runReviewBatchAnalysis() {
     return;
   }
   reviewQueueRunning = true;
+  updateReviewAnalyzeButtonState();
   const token = reviewAnalysisToken;
   try {
     for (let ply = 0; reviewRecord && ply < reviewRecord.states.length; ply += 1) {
@@ -1171,6 +1291,7 @@ async function runReviewBatchAnalysis() {
   } finally {
     if (token === reviewAnalysisToken) {
       reviewQueueRunning = false;
+      updateReviewAnalyzeButtonState();
     }
   }
 }
@@ -1193,6 +1314,10 @@ function scheduleReviewFocusedAnalysis(target = null) {
       ? { type: "branch", id: reviewRecord.activeBranchId }
       : { type: "main", ply: reviewRecord.currentPly }
   );
+  if (reviewQueueRunning || reviewEvalForTarget(focusedTarget)) {
+    updateReviewAnalyzeButtonState();
+    return;
+  }
   const token = reviewAnalysisToken;
   reviewFocusedTimer = window.setTimeout(async () => {
     reviewFocusedTimer = null;
@@ -1323,7 +1448,10 @@ function setReviewBestMoveText(text) {
 
 function updateReviewAnalyzeButtonState() {
   if (reviewAnalyzeButton) {
-    reviewAnalyzeButton.disabled = !CAN_USE_FAIRY_ENGINE || !reviewRecord || Boolean(reviewFocusedAbortController);
+    reviewAnalyzeButton.disabled = !CAN_USE_FAIRY_ENGINE
+      || !reviewRecord
+      || reviewQueueRunning
+      || Boolean(reviewFocusedAbortController);
   }
 }
 
