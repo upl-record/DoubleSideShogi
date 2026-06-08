@@ -1,0 +1,46 @@
+{
+  "game": "yangmyeon-janggi",
+  "kind": "opening-tree-manifest",
+  "version": 1,
+  "updatedAt": "2026-06-08T06:02:53.019Z",
+  "latestJson": "outputs/opening_tree/opening-tree-d20-p4.json",
+  "latestMarkdown": "outputs/opening_tree/opening-tree-d20-p4.md",
+  "items": [
+    {
+      "json": "outputs/opening_tree/opening-tree-d20-p4.json",
+      "markdown": "outputs/opening_tree/opening-tree-d20-p4.md",
+      "depth": 20,
+      "plies": 4,
+      "branching": 10,
+      "positions": 1333,
+      "createdAt": "2026-06-08T06:02:53.019Z"
+    },
+    {
+      "json": "outputs/opening_tree/opening-tree-d20-p3.json",
+      "markdown": "outputs/opening_tree/opening-tree-d20-p3.md",
+      "depth": 20,
+      "plies": 3,
+      "branching": 5,
+      "positions": 73,
+      "createdAt": "2026-06-07T06:55:14.738Z"
+    },
+    {
+      "json": "outputs/opening_tree/opening-tree-d20-p2.json",
+      "markdown": "outputs/opening_tree/opening-tree-d20-p2.md",
+      "depth": 20,
+      "plies": 2,
+      "branching": 3,
+      "positions": 13,
+      "createdAt": "2026-06-06T19:17:34.909Z"
+    },
+    {
+      "json": "outputs/opening_tree/opening-tree-d20-p1.json",
+      "markdown": "outputs/opening_tree/opening-tree-d20-p1.md",
+      "depth": 20,
+      "plies": 1,
+      "branching": 3,
+      "positions": 1,
+      "createdAt": "2026-06-06T19:11:22.253Z"
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "game": "yangmyeon-janggi",
+  "kind": "opening-tree",
+  "version": 1,
+  "createdAt": "2026-06-06T18:09:28.258Z",
+  "elapsedMs": 793,
+  "options": {
+    "depth": 1,
+    "movetimeMs": 0,
+    "plies": 1,
+    "branching": 3,
+    "root": "all",
+    "rootLimit": 3,
+    "maxMultipv": 64,
+    "maxPositions": 0,
+    "hash": 256,
+    "threads": 1
+  },
+  "engine": {
+    "path": "C:\\Users\\이찬영\\OneDrive\\Desktop\\양면장기\\Fairy-Stockfish-master-src\\Fairy-Stockfish-master\\src\\stockfish.exe",
+    "name": "stockfish.exe",
+    "variantPath": "C:\\Users\\이찬영\\OneDrive\\Desktop\\양면장기\\variants.ini"
+  },
+  "stats": {
+    "positions": 1,
+    "engineSearches": 1,
+    "cacheHits": 0,
+    "engineNodes": 33,
+    "engineTimeMs": 2,
+    "shortMultiPv": 0,
+    "truncated": 0
+  },
+  "root": {
+    "ply": 0,
+    "turn": 1,
+    "sideToMove": "white",
+    "fen": "pgkst/5/5/5/TSKGP[] w - - 0 1",
+    "legalActions": 12,
+    "requestedDepth": 1,
+    "depth": 1,
+    "movetimeMs": 0,
+    "multipv": 3,
+    "cached": false,
+    "nodes": 33,
+    "nps": 16500,
+    "engineTimeMs": 2,
+    "elapsedMs": 1,
+    "bestmove": "c1d2",
+    "lines": [
+      {
+        "move": "Kd2",
+        "actionKey": "m:4:2:3:3",
+        "scoreSideToMove": 60,
+        "scoreSideToMoveText": "+0.60",
+        "boardScore": 60,
+        "boardScoreText": "+0.60",
+        "depth": 1,
+        "nodes": 33,
+        "nps": 16500,
+        "timeMs": 2,
+        "scoreType": "cp",
+        "rawScore": 60,
+        "pv": "Kd2",
+        "pvUci": [
+          "c1d2"
+        ],
+        "terminal": null
+      },
+      {
+        "move": "Kb2",
+        "actionKey": "m:4:2:3:1",
+        "scoreSideToMove": 30,
+        "scoreSideToMoveText": "+0.30",
+        "boardScore": 30,
+        "boardScoreText": "+0.30",
+        "depth": 1,
+        "nodes": 33,
+        "nps": 16500,
+        "timeMs": 2,
+        "scoreType": "cp",
+        "rawScore": 30,
+        "pv": "Kb2",
+        "pvUci": [
+          "c1b2"
+        ],
+        "terminal": null
+      },
+      {
+        "move": "Kc2",
+        "actionKey": "m:4:2:3:2",
+        "scoreSideToMove": 22,
+        "scoreSideToMoveText": "+0.22",
+        "boardScore": 22,
+        "boardScoreText": "+0.22",
+        "depth": 1,
+        "nodes": 33,
+        "nps": 16500,
+        "timeMs": 2,
+        "scoreType": "cp",
+        "rawScore": 22,
+        "pv": "Kc2",
+        "pvUci": [
+          "c1c2"
+        ],
+        "terminal": null
+      }
+    ]
+  }
+}

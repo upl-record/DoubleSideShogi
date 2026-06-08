@@ -1,0 +1,109 @@
+{
+  "game": "yangmyeon-janggi",
+  "kind": "opening-tree",
+  "version": 1,
+  "createdAt": "2026-06-06T19:12:13.506Z",
+  "elapsedMs": 651,
+  "options": {
+    "depth": 1,
+    "movetimeMs": 0,
+    "plies": 2,
+    "branching": 1,
+    "root": 1,
+    "rootLimit": 0,
+    "maxMultipv": 64,
+    "maxPositions": 0,
+    "hash": 256,
+    "threads": 1
+  },
+  "engine": {
+    "path": "C:\\Users\\이찬영\\OneDrive\\Desktop\\양면장기\\Fairy-Stockfish-master-src\\Fairy-Stockfish-master\\src\\stockfish.exe",
+    "name": "stockfish.exe",
+    "variantPath": "C:\\Users\\이찬영\\OneDrive\\Desktop\\양면장기\\variants.ini"
+  },
+  "stats": {
+    "positions": 2,
+    "engineSearches": 2,
+    "cacheHits": 0,
+    "engineNodes": 24,
+    "engineTimeMs": 2,
+    "shortMultiPv": 0,
+    "truncated": 0
+  },
+  "root": {
+    "ply": 0,
+    "turn": 1,
+    "sideToMove": "white",
+    "fen": "pgkst/5/5/5/TSKGP[] w - - 0 1",
+    "legalActions": 12,
+    "requestedDepth": 1,
+    "depth": 1,
+    "movetimeMs": 0,
+    "multipv": 1,
+    "cached": false,
+    "nodes": 12,
+    "nps": 12000,
+    "engineTimeMs": 1,
+    "elapsedMs": 1,
+    "bestmove": "c1d2",
+    "lines": [
+      {
+        "move": "Kd2",
+        "actionKey": "m:4:2:3:3",
+        "scoreSideToMove": 60,
+        "scoreSideToMoveText": "+0.60",
+        "boardScore": 60,
+        "boardScoreText": "+0.60",
+        "depth": 1,
+        "nodes": 12,
+        "nps": 12000,
+        "timeMs": 1,
+        "scoreType": "cp",
+        "rawScore": 60,
+        "pv": "Kd2",
+        "pvUci": [
+          "c1d2"
+        ],
+        "terminal": null,
+        "child": {
+          "ply": 1,
+          "turn": 2,
+          "sideToMove": "black",
+          "fen": "pgkst/5/5/3K1/TS1GP[] b - - 0 1",
+          "legalActions": 12,
+          "requestedDepth": 1,
+          "depth": 1,
+          "movetimeMs": 0,
+          "multipv": 1,
+          "cached": false,
+          "nodes": 12,
+          "nps": 12000,
+          "engineTimeMs": 1,
+          "elapsedMs": 0,
+          "bestmove": "e5d4+",
+          "lines": [
+            {
+              "move": "토d4=향",
+              "actionKey": "m:0:4:1:3",
+              "scoreSideToMove": 258,
+              "scoreSideToMoveText": "+2.58",
+              "boardScore": -258,
+              "boardScoreText": "-2.58",
+              "depth": 1,
+              "nodes": 12,
+              "nps": 12000,
+              "timeMs": 1,
+              "scoreType": "cp",
+              "rawScore": 258,
+              "pv": "토d4=향",
+              "pvUci": [
+                "e5d4+"
+              ],
+              "terminal": null
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

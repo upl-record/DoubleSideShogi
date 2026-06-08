@@ -49,6 +49,7 @@
           <div class="panel-tabs" role="tablist" aria-label="패널 탭">
             <button id="analysisTab" class="active" type="button" role="tab" aria-selected="true" aria-controls="analysisPanelTab" data-panel-tab="analysis">분석</button>
             <button id="gameTab" type="button" role="tab" aria-selected="false" aria-controls="gamePanelTab" data-panel-tab="game">게임</button>
+            <button id="openingTab" type="button" role="tab" aria-selected="false" aria-controls="openingPanelTab" data-panel-tab="opening">오프닝</button>
             <button id="reviewTab" type="button" role="tab" aria-selected="false" aria-controls="reviewPanelTab" data-panel-tab="review">리뷰</button>
           </div>
 
@@ -138,6 +139,28 @@
               <div class="game-controls">
                 <button id="aiGameButton" class="ghost-button" type="button">AI 대국</button>
                 <button id="gameRecordSaveButton" class="ghost-button" type="button" disabled>전체 기록 저장</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="openingPanelTab" class="panel-view opening-view" role="tabpanel" aria-labelledby="openingTab" hidden>
+            <div class="opening-card">
+              <div class="opening-heading">
+                <div>
+                  <p class="panel-label">Opening Tree</p>
+                  <h2 id="openingTreeTitle">오프닝 로딩 중</h2>
+                </div>
+                <span id="openingTreeDepth" class="opening-depth">depth -</span>
+              </div>
+              <p id="openingTreeStatus" class="opening-status">오프닝 데이터를 불러오는 중입니다.</p>
+              <div id="openingTreePath" class="opening-path" aria-label="현재 오프닝 경로"></div>
+              <div class="opening-controls" aria-label="오프닝 트리 이동">
+                <button id="openingStartButton" class="ghost-button compact" type="button" disabled>&lt;&lt;</button>
+                <button id="openingBackButton" class="ghost-button compact" type="button" disabled>&lt;</button>
+                <button id="openingForwardButton" class="ghost-button compact" type="button" disabled>&gt;</button>
+              </div>
+              <div id="openingMoveList" class="opening-move-list" aria-live="polite">
+                <p class="empty-analysis">오프닝 후보를 준비하고 있습니다.</p>
               </div>
             </div>
           </section>

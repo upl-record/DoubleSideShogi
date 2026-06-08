@@ -1,0 +1,17 @@
+[1] ply 0 root · legal 12 · multipv 12
+[2] ply 1 은c2=각 · legal 12 · multipv 3
+[3] ply 1 토b2=향 · legal 12 · multipv 3
+[4] ply 1 금e2=계 · legal 12 · multipv 3
+[5] ply 1 금d2=계 · legal 12 · multipv 3
+[6] ply 1 보e2=비 · legal 12 · multipv 3
+[7] ply 1 은b2=각 · legal 12 · multipv 3
+[8] ply 1 Kc2 · legal 12 · multipv 3
+[9] ply 1 금c2=계 · legal 12 · multipv 3
+[10] ply 1 은a2=각 · legal 12 · multipv 3
+[11] ply 1 토a2=향 · legal 12 · multipv 3
+[12] ply 1 Kd2 · legal 12 · multipv 3
+[13] ply 1 Kb2 · legal 12 · multipv 3
+Done.
+JSON: C:\Users\이찬영\OneDrive\Desktop\양면장기\outputs\opening_tree\opening-tree-d20-p2.json
+Markdown: C:\Users\이찬영\OneDrive\Desktop\양면장기\outputs\opening_tree\opening-tree-d20-p2.md
+Positions: 13, engine searches: 12, cache hits: 1

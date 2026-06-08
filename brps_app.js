@@ -51,6 +51,13 @@ const CAN_USE_FAIRY_ENGINE = CAN_USE_FAIRY_BRIDGE || CAN_USE_FAIRY_WASM;
 const FAIRY_ANALYSIS_ENDPOINT = CAN_USE_FAIRY_BRIDGE
   ? (window.location.protocol === "file:" ? `${FAIRY_BRIDGE_ORIGIN}/api/fairy/analyze` : "/api/fairy/analyze")
   : "";
+const OPENING_TREE_MANIFEST_URL = "outputs/opening_tree/opening-tree-manifest.json";
+const OPENING_TREE_FALLBACK_DATA_URLS = [
+  "outputs/opening_tree/opening-tree-d20-p4.json",
+  "outputs/opening_tree/opening-tree-d20-p3.json",
+  "outputs/opening_tree/opening-tree-d20-p2.json",
+  "outputs/opening_tree/opening-tree-d20-p1.json",
+];
 const TT_EXACT = 0;
 const TT_LOWER = 1;
 const TT_UPPER = 2;
@@ -180,6 +187,14 @@ const startAiGameButton = document.getElementById("startAiGameButton");
 const cancelAiGameButton = document.getElementById("cancelAiGameButton");
 const gameRecordSaveButton = document.getElementById("gameRecordSaveButton");
 const gameTabStatusEl = document.getElementById("gameTabStatus");
+const openingTreeTitleEl = document.getElementById("openingTreeTitle");
+const openingTreeDepthEl = document.getElementById("openingTreeDepth");
+const openingTreeStatusEl = document.getElementById("openingTreeStatus");
+const openingTreePathEl = document.getElementById("openingTreePath");
+const openingMoveListEl = document.getElementById("openingMoveList");
+const openingStartButton = document.getElementById("openingStartButton");
+const openingBackButton = document.getElementById("openingBackButton");
+const openingForwardButton = document.getElementById("openingForwardButton");
 const reviewTitleEl = document.getElementById("reviewTitle");
 const reviewLoadButton = document.getElementById("reviewLoadButton");
 const reviewFileInput = document.getElementById("reviewFileInput");
@@ -239,6 +254,11 @@ let reviewFocusedAbortController = null;
 let reviewApplyingPosition = false;
 let pendingReviewBranch = null;
 let reviewExtraTimeSeconds = REVIEW_EXTRA_TIME_DEFAULT_SECONDS;
+let openingTreeData = null;
+let openingTreeLoadPromise = null;
+let openingTreePath = [];
+let openingTreeRedoStack = [];
+let openingTreeSourceUrl = "";
 let moveSoundTemplate = null;
 const activeMoveSounds = new Set();
 let fairyWasmWorker = null;
@@ -517,7 +537,10 @@ function resetGame() {
     log: [],
     history: [],
   };
+  openingTreePath = [];
+  openingTreeRedoStack = [];
   render();
+  renderOpeningTreePanel();
   clearAnalysis();
   runAutoAnalysis();
 }
@@ -756,7 +779,7 @@ function updateResumeAnalysisButton() {
 
 function setPanelTab(tab) {
   activePanelTab = tab;
-  const titleByTab = { analysis: "분석", game: "게임", review: "리뷰" };
+  const titleByTab = { analysis: "분석", game: "게임", opening: "오프닝", review: "리뷰" };
   panelTitleEl.textContent = titleByTab[tab] || "분석";
   for (const button of panelTabButtons) {
     const selected = button.dataset.panelTab === tab;
@@ -769,6 +792,9 @@ function setPanelTab(tab) {
   }
   if (tab === "review") {
     renderReviewPanel();
+  } else if (tab === "opening") {
+    ensureOpeningTreeLoaded();
+    renderOpeningTreePanel();
   }
 }
 
@@ -3781,6 +3807,373 @@ function pvText(pv, position) {
   return parts.join(" ");
 }
 
+function isValidOpeningTreePayload(payload) {
+  return Boolean(
+    payload &&
+    payload.game === "yangmyeon-janggi" &&
+    payload.kind === "opening-tree" &&
+    payload.root &&
+    Array.isArray(payload.root.lines),
+  );
+}
+
+async function fetchOpeningTreePayload(url) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`${url} HTTP ${response.status}`);
+  }
+  const payload = await response.json();
+  if (!isValidOpeningTreePayload(payload)) {
+    throw new Error(`${url} is not an opening tree`);
+  }
+  return payload;
+}
+
+async function openingTreeCandidateUrls() {
+  const urls = [];
+  try {
+    const response = await fetch(OPENING_TREE_MANIFEST_URL, { cache: "no-store" });
+    if (response.ok) {
+      const manifest = await response.json();
+      if (manifest && typeof manifest.latestJson === "string") {
+        urls.push(manifest.latestJson);
+      }
+      if (manifest && Array.isArray(manifest.items)) {
+        for (const item of manifest.items) {
+          if (item && typeof item.json === "string") {
+            urls.push(item.json);
+          }
+        }
+      }
+    }
+  } catch {
+    // The manifest is optional; fall back to known generated filenames.
+  }
+  return [...new Set([...urls, ...OPENING_TREE_FALLBACK_DATA_URLS])];
+}
+
+function ensureOpeningTreeLoaded() {
+  if (openingTreeData || openingTreeLoadPromise) return openingTreeLoadPromise;
+  if (openingTreeStatusEl) {
+    openingTreeStatusEl.textContent = "오프닝 데이터를 불러오는 중";
+  }
+  openingTreeLoadPromise = (async () => {
+    let lastError = null;
+    for (const url of await openingTreeCandidateUrls()) {
+      try {
+        const payload = await fetchOpeningTreePayload(url);
+        openingTreeData = payload;
+        openingTreeSourceUrl = url;
+        openingTreePath = [];
+        openingTreeRedoStack = [];
+        applyOpeningTreePosition();
+        return payload;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("opening tree data not found");
+  })()
+    .catch((error) => {
+      if (openingTreeTitleEl) openingTreeTitleEl.textContent = "오프닝 데이터 없음";
+      if (openingTreeDepthEl) openingTreeDepthEl.textContent = "depth -";
+      if (openingTreeStatusEl) {
+        openingTreeStatusEl.textContent = "오프닝 tree JSON을 불러오지 못했습니다.";
+      }
+      if (openingMoveListEl) {
+        openingMoveListEl.innerHTML = '<p class="empty-analysis">outputs/opening_tree 폴더의 JSON을 확인하세요.</p>';
+      }
+      console.error(error);
+      return null;
+    })
+    .finally(() => {
+      openingTreeLoadPromise = null;
+      renderOpeningTreePanel();
+    });
+  renderOpeningTreePanel();
+  return openingTreeLoadPromise;
+}
+
+function openingActionFromKey(key) {
+  if (!key || key === "p") return { type: "pass" };
+  const parts = String(key).split(":");
+  if (parts[0] === "d" && parts.length === 4) {
+    return {
+      type: "drop",
+      base: parts[1],
+      row: Number(parts[2]),
+      col: Number(parts[3]),
+    };
+  }
+  if (parts[0] === "m" && parts.length === 5) {
+    return {
+      type: "move",
+      fromRow: Number(parts[1]),
+      fromCol: Number(parts[2]),
+      toRow: Number(parts[3]),
+      toCol: Number(parts[4]),
+    };
+  }
+  return null;
+}
+
+function openingTreeRoot() {
+  return openingTreeData ? openingTreeData.root : null;
+}
+
+function openingTreeNodeForPath(path = openingTreePath) {
+  let node = openingTreeRoot();
+  if (!node) return null;
+  for (const index of path) {
+    const line = node.lines && node.lines[index];
+    if (!line || !line.child) return null;
+    node = line.child;
+  }
+  return node;
+}
+
+function openingTreeLinesForPath(path = openingTreePath) {
+  const lines = [];
+  let node = openingTreeRoot();
+  if (!node) return lines;
+  for (const index of path) {
+    const line = node.lines && node.lines[index];
+    if (!line) break;
+    lines.push(line);
+    node = line.child || null;
+    if (!node) break;
+  }
+  return lines;
+}
+
+function openingTreeLastLine(path = openingTreePath) {
+  const lines = openingTreeLinesForPath(path);
+  return lines.length ? lines[lines.length - 1] : null;
+}
+
+function snapshotFromStateData(source) {
+  return JSON.stringify({
+    board: source.board,
+    hands: source.hands,
+    turn: source.turn,
+    selected: null,
+    winner: source.winner,
+    status: source.status,
+    log: source.log,
+  });
+}
+
+function makeOpeningStateForPath(path = openingTreePath) {
+  const nextState = makeInitialStateData();
+  nextState.status = "오프닝 트리 · 시작 포지션";
+  let node = openingTreeRoot();
+  const pathMoves = [];
+
+  if (!node) return nextState;
+
+  for (const index of path) {
+    const line = node.lines && node.lines[index];
+    const action = line ? openingActionFromKey(line.actionKey) : null;
+    if (!line || !action) break;
+
+    const before = makePositionFromState(nextState);
+    const notation = actionText(action, before);
+    nextState.history.push(snapshotFromStateData(nextState));
+    const after = applyActionToPosition(before, action);
+    nextState.board = after.board;
+    nextState.hands = after.hands;
+    nextState.turn = after.turn;
+    nextState.winner = after.winner;
+    nextState.log.push(notation === "?" ? line.move : notation);
+    pathMoves.push(line.move);
+
+    if (after.winner) {
+      nextState.turn = after.winner.player;
+      nextState.status = `${resultNotationForWinner(after.winner.player)} · ${winnerSideName(after.winner.player)} 승리: ${after.winner.reason}`;
+      nextState.log.push(resultNotationForWinner(after.winner.player));
+      break;
+    }
+
+    nextState.status = `오프닝 트리 · ${pathMoves.join(" ")}`;
+    node = line.child || null;
+    if (!node) break;
+  }
+
+  return nextState;
+}
+
+function applyOpeningTreePosition() {
+  if (!openingTreeData) return;
+  stopAiGame({ update: false, restoreStatus: false });
+  if (analysisAbortController) {
+    analysisAbortController.abort();
+    analysisAbortController = null;
+  }
+  analysisToken += 1;
+  setAnalysisRunning(false);
+  state = makeOpeningStateForPath();
+  render();
+  clearAnalysis("오프닝 트리");
+  const lastLine = openingTreeLastLine();
+  const currentNode = openingTreeNodeForPath();
+  const previewIndex = openingTreeRedoStack.length > 0 ? openingTreeRedoStack[0] : 0;
+  const previewLine = currentNode && currentNode.lines ? currentNode.lines[previewIndex] || currentNode.lines[0] : null;
+  const displayLine = lastLine || previewLine;
+  if (!displayLine) {
+    lastDisplayedScore = null;
+  }
+  setScoreRail(displayLine ? displayLine.boardScore : null);
+}
+
+function compactOpeningTreeSource() {
+  if (!openingTreeData) return "";
+  const options = openingTreeData.options || {};
+  const stats = openingTreeData.stats || {};
+  const depth = options.depth || openingTreeData.root?.depth || 0;
+  const plies = options.plies || 0;
+  const positions = stats.positions || 0;
+  const source = openingTreeSourceUrl ? openingTreeSourceUrl.split("/").pop() : "";
+  return `${source || "opening tree"} · d${depth} · ${plies} ply · ${positions} positions`;
+}
+
+function renderOpeningPath(lines) {
+  if (!openingTreePathEl) return;
+  openingTreePathEl.innerHTML = "";
+  const rootButton = document.createElement("button");
+  rootButton.type = "button";
+  rootButton.className = `opening-path-chip${lines.length === 0 ? " active" : ""}`;
+  rootButton.textContent = "Start";
+  rootButton.addEventListener("click", () => {
+    openingTreePath = [];
+    openingTreeRedoStack = [];
+    applyOpeningTreePosition();
+    renderOpeningTreePanel();
+  });
+  openingTreePathEl.appendChild(rootButton);
+
+  lines.forEach((line, index) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `opening-path-chip${index === lines.length - 1 ? " active" : ""}`;
+    chip.textContent = `${index + 1}. ${line.move}`;
+    chip.addEventListener("click", () => {
+      openingTreePath = openingTreePath.slice(0, index + 1);
+      openingTreeRedoStack = [];
+      applyOpeningTreePosition();
+      renderOpeningTreePanel();
+    });
+    openingTreePathEl.appendChild(chip);
+  });
+}
+
+function renderOpeningTreePanel() {
+  if (!openingTreeTitleEl || !openingMoveListEl) return;
+  if (!openingTreeData) {
+    openingTreeTitleEl.textContent = openingTreeLoadPromise ? "오프닝 로딩 중" : "오프닝 데이터 없음";
+    if (openingTreeDepthEl) openingTreeDepthEl.textContent = "depth -";
+    if (!openingTreeLoadPromise) {
+      openingMoveListEl.innerHTML = '<p class="empty-analysis">오프닝 tree JSON을 찾지 못했습니다.</p>';
+    }
+    if (openingStartButton) openingStartButton.disabled = true;
+    if (openingBackButton) openingBackButton.disabled = true;
+    if (openingForwardButton) openingForwardButton.disabled = true;
+    return;
+  }
+
+  const currentNode = openingTreeNodeForPath();
+  const pathLines = openingTreeLinesForPath();
+  const lastLine = openingTreeLastLine();
+  const options = openingTreeData.options || {};
+  const depth = currentNode ? currentNode.depth : (lastLine ? lastLine.depth : options.depth);
+  const side = currentNode && currentNode.turn === 2 ? "흑" : "백";
+  openingTreeTitleEl.textContent = currentNode ? `${side} 차례 후보` : "오프닝 leaf";
+  if (openingTreeDepthEl) openingTreeDepthEl.textContent = `depth ${depth || "-"}`;
+  if (openingTreeStatusEl) openingTreeStatusEl.textContent = compactOpeningTreeSource();
+  renderOpeningPath(pathLines);
+
+  const canStepBack = openingTreePath.length > 0;
+  const canStepForward = Boolean(
+    currentNode &&
+    Array.isArray(currentNode.lines) &&
+    currentNode.lines.length > 0 &&
+    (openingTreeRedoStack.length === 0 || currentNode.lines[openingTreeRedoStack[0]]),
+  );
+  if (openingStartButton) openingStartButton.disabled = !canStepBack;
+  if (openingBackButton) openingBackButton.disabled = !canStepBack;
+  if (openingForwardButton) openingForwardButton.disabled = !canStepForward;
+
+  openingMoveListEl.innerHTML = "";
+  if (!currentNode || !Array.isArray(currentNode.lines) || currentNode.lines.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-analysis";
+    empty.textContent = lastLine && lastLine.pv ? lastLine.pv : "더 깊은 tree 후보가 없습니다.";
+    openingMoveListEl.appendChild(empty);
+    return;
+  }
+
+  currentNode.lines.forEach((line, index) => {
+    const row = document.createElement("button");
+    const score = Number(line.boardScore || 0);
+    const active = openingTreeRedoStack.length > 0 && openingTreeRedoStack[0] === index;
+    row.type = "button";
+    row.className = `opening-move-row ${scoreFavorClass(score)}${active ? " active" : ""}`;
+    row.addEventListener("click", () => {
+      openingTreePath = [...openingTreePath, index];
+      openingTreeRedoStack = [];
+      applyOpeningTreePosition();
+      renderOpeningTreePanel();
+    });
+
+    const scoreEl = document.createElement("span");
+    scoreEl.className = "opening-score";
+    scoreEl.textContent = line.boardScoreText || formatScore(score);
+
+    const body = document.createElement("span");
+    body.className = "opening-move-body";
+    const move = document.createElement("strong");
+    move.textContent = line.move;
+    const pv = document.createElement("small");
+    pv.textContent = line.pv || "";
+    body.append(move, pv);
+
+    const meta = document.createElement("span");
+    meta.className = "opening-meta";
+    meta.textContent = `d${line.depth || depth || "-"}`;
+
+    row.append(scoreEl, body, meta);
+    openingMoveListEl.appendChild(row);
+  });
+}
+
+function openingTreeStepBack() {
+  if (!openingTreeData || openingTreePath.length === 0) return false;
+  const previous = openingTreePath.pop();
+  openingTreeRedoStack.unshift(previous);
+  applyOpeningTreePosition();
+  renderOpeningTreePanel();
+  return true;
+}
+
+function openingTreeStepForward() {
+  const currentNode = openingTreeNodeForPath();
+  if (!currentNode || !Array.isArray(currentNode.lines) || currentNode.lines.length === 0) return false;
+  const index = openingTreeRedoStack.length > 0 ? openingTreeRedoStack.shift() : 0;
+  if (!currentNode.lines[index]) return false;
+  openingTreePath.push(index);
+  applyOpeningTreePosition();
+  renderOpeningTreePanel();
+  return true;
+}
+
+function openingTreeGoStart() {
+  if (!openingTreeData || openingTreePath.length === 0) return false;
+  openingTreePath = [];
+  openingTreeRedoStack = [];
+  applyOpeningTreePosition();
+  renderOpeningTreePanel();
+  return true;
+}
+
 function cloneActionData(action) {
   return action ? { ...action } : action;
 }
@@ -4745,14 +5138,27 @@ function isTypingTarget(target) {
   return target.isContentEditable || ["input", "textarea", "select"].includes(tagName);
 }
 
-function handleReviewArrowKey(event) {
-  if (activePanelTab !== "review" || !reviewRecord || isTypingTarget(event.target)) return;
-  if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-    event.preventDefault();
-    reviewUndo();
-  } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-    event.preventDefault();
-    reviewRedo();
+function handlePanelArrowKey(event) {
+  if (isTypingTarget(event.target)) return;
+  if (activePanelTab === "review" && reviewRecord) {
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      reviewUndo();
+    } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      reviewRedo();
+    }
+    return;
+  }
+
+  if (activePanelTab === "opening" && openingTreeData) {
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      openingTreeStepBack();
+    } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      openingTreeStepForward();
+    }
   }
 }
 
@@ -4813,6 +5219,18 @@ if (reviewExtraTimeInput) {
 
 if (reviewAnalyzeButton) {
   reviewAnalyzeButton.addEventListener("click", runReviewExtraAnalysis);
+}
+
+if (openingStartButton) {
+  openingStartButton.addEventListener("click", openingTreeGoStart);
+}
+
+if (openingBackButton) {
+  openingBackButton.addEventListener("click", openingTreeStepBack);
+}
+
+if (openingForwardButton) {
+  openingForwardButton.addEventListener("click", openingTreeStepForward);
 }
 
 saveKifuButton.addEventListener("click", () => {
@@ -4954,7 +5372,7 @@ window.addEventListener("beforeunload", () => {
   saveAnalysisCache();
 });
 
-window.addEventListener("keydown", handleReviewArrowKey);
+window.addEventListener("keydown", handlePanelArrowKey);
 
 loadAnalysisCache();
 loadAnalysisTimeSetting();
